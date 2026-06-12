@@ -1,0 +1,6 @@
+run: B1-baseline-gemma  agent=baseline  model=gemma-proxy/google/gemma-4-12b-qat  wall=23s
+  # stream model                              prompt   compl    total   cost_u
+  1 true   google/gemma-4-12b-qat                568     379      947     2084
+  2 true   google/gemma-4-12b-qat               9341     175     9516    10041
+  3 true   google/gemma-4-12b-qat              24409     414    24823    26065
+SUM        3 requests                          34318     968    35286    38190

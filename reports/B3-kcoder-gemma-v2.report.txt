@@ -1,0 +1,10 @@
+run: B3-k-lani-coder-gemma-v2  agent=k-lani-coder  model=gemma-proxy/google/gemma-4-12b-qat  wall=23s
+  # stream model                              prompt   compl    total   cost_u
+  1 true   google/gemma-4-12b-qat                602     542     1144     2770
+  2 true   google/gemma-4-12b-qat               3069     224     3293     3965
+  3 true   google/gemma-4-12b-qat               3352      68     3420     3624
+  4 true   google/gemma-4-12b-qat               3651      54     3705     3867
+  5 true   google/gemma-4-12b-qat               3851     533     4384     5983
+  6 true   google/gemma-4-12b-qat               4468      38     4506     4620
+  7 true   google/gemma-4-12b-qat               4591      61     4652     4835
+SUM        7 requests                          23584    1520    25104    29664

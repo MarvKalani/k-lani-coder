@@ -1,0 +1,33 @@
+# k-lani-ai-proxy as a ready-to-run metering service.
+#
+#   cp .env.example .env   # put your provider key there (never in git)
+#   docker compose up -d
+#   open http://127.0.0.1:8080/
+#
+# SECURITY: the dashboard shows your prompts and completions — i.e.
+# your source-code slices. Provider keys are masked (verified: they
+# never appear in traces or UI), but the dashboard is for the
+# operator's eyes only. That is why the port binding below is
+# loopback-only. Do not change it to 0.0.0.0 on a shared machine.
+
+services:
+  k-lani-coder-proxy:
+    build: .
+    image: k-lani-coder:2026.24.2
+    restart: unless-stopped
+    environment:
+      MKLANI_UPSTREAM_URL: ${MKLANI_UPSTREAM_URL:-https://api.z.ai/api/coding/paas/v4/chat/completions}
+      MKLANI_UPSTREAM_API_KEY: ${MKLANI_UPSTREAM_API_KEY:?set it in .env}
+      MKLANI_UPSTREAM_MODEL: ${MKLANI_UPSTREAM_MODEL:-glm-5.1}
+      MKLANI_SEMANTIC_CACHE: "0"
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - k-lani-coder-proxy-data:/data
+    # For a local LM Studio upstream on the host, uncomment:
+    # extra_hosts:
+    #   - "host.docker.internal:host-gateway"
+    # and set MKLANI_UPSTREAM_URL=http://host.docker.internal:1234/v1/chat/completions
+
+volumes:
+  k-lani-coder-proxy-data:
