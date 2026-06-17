@@ -1,0 +1,16 @@
+[package]
+name = "pdf-toolbox-rs"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+
+[lib]
+name = "pdf_toolbox"
+path = "src/lib.rs"
+
+[[bin]]
+name = "pdf-toolbox"
+path = "src/main.rs"
+
+[dependencies]

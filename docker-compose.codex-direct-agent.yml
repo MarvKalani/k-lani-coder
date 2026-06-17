@@ -1,0 +1,67 @@
+# Direct Codex benchmark runner.
+#
+# This is intentionally not MCP-only. It is Run A: Codex gets the whole empty
+# benchmark project directory and may create files/run the gate there. Codex'
+# own bubblewrap sandbox does not work inside all Docker hosts, so process
+# isolation is provided by this container and Codex runs with danger-full-access
+# inside it. Token usage is still normalized to /usage/codex-usage.ndjson.
+
+name: k-lani-coder-codex-agent-sandbox
+
+services:
+  codex-direct-agent:
+    build:
+      context: .
+      dockerfile: codex-direct-agent.Dockerfile
+      args:
+        CODEX_NPM_VERSION: ${CODEX_NPM_VERSION:-0.128.0}
+    image: k-lani-coder-codex-direct-agent:${KLANI_IMAGE_TAG:-2026.24.10}
+    network_mode: host
+    user: ${KLANI_CODEX_CONTAINER_USER:-10003:10003}
+    environment:
+      CODEX_HOME: ${KLANI_CODEX_HOME_CONTAINER_DIR:-/codex-home}
+      HOME: ${KLANI_CONTAINER_HOME:-/tmp/codex-user-home}
+      XDG_CACHE_HOME: ${KLANI_XDG_CACHE_HOME:-/tmp/codex-cache}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      KLANI_USAGE_DIR: /usage
+      KLANI_WORKDIR: /work
+      KLANI_MCP_MODE: none
+      KLANI_CODEX_RUNTIME_PROFILE: ${KLANI_CODEX_RUNTIME_PROFILE:-native_default}
+      KLANI_CODEX_ENABLED_TOOLS: ${KLANI_CODEX_ENABLED_TOOLS:-}
+      KLANI_CODEX_ONE_SHOT_OUTPUT_MODE: ${KLANI_CODEX_ONE_SHOT_OUTPUT_MODE:-}
+      KLANI_CODEX_SANDBOX: danger-full-access
+      KLANI_AGENT_ID: ${KLANI_AGENT_ID:-gpt-5.5-medium-codex-subscription}
+      KLANI_MODEL: ${KLANI_MODEL:-gpt-5.5}
+      KLANI_REASONING_EFFORT: ${KLANI_REASONING_EFFORT:-medium}
+      KLANI_TICKET: ${KLANI_TICKET:-}
+      KLANI_ROLE: ${KLANI_ROLE:-worker}
+      KLANI_PHASE: ${KLANI_PHASE:-direct_agent}
+      KLANI_LEVEL: ${KLANI_LEVEL:-2}
+      KLANI_BILLING: ${KLANI_BILLING:-subscription}
+      KLANI_CODEX_HOME_ISOLATED: ${KLANI_CODEX_HOME_ISOLATED:-0}
+      KLANI_CODEX_HOME_MODE: ${KLANI_CODEX_HOME_MODE:-unspecified}
+      KLANI_CODEX_HOME_LABEL: ${KLANI_CODEX_HOME_LABEL:-}
+      KLANI_CODEX_HOME_MANIFEST_PATH: ${KLANI_CODEX_HOME_MANIFEST_PATH:-}
+      KLANI_CODEX_PROXY_URL: ${KLANI_CODEX_PROXY_URL:-}
+      KLANI_CODEX_PROXY_BASE_URL: ${KLANI_CODEX_PROXY_BASE_URL:-}
+      KLANI_CAPTURE_PROMPT_INPUT: ${KLANI_CAPTURE_PROMPT_INPUT:-0}
+      KLANI_AGENT_HEARTBEAT_MS: ${KLANI_AGENT_HEARTBEAT_MS:-}
+      KLANI_AGENT_NO_PROGRESS_TIMEOUT_MS: ${KLANI_AGENT_NO_PROGRESS_TIMEOUT_MS:-}
+      KLANI_AGENT_SILENT_TURN_TIMEOUT_MS: ${KLANI_AGENT_SILENT_TURN_TIMEOUT_MS:-}
+      KLANI_CODEX_OTEL_LIVENESS: ${KLANI_CODEX_OTEL_LIVENESS:-}
+      KLANI_PROMPT: ${KLANI_PROMPT:-}
+      KLANI_READ_STDIN: ${KLANI_READ_STDIN:-}
+    volumes:
+      - ${KLANI_CODEX_HOME_HOST_DIR:-../../data/coder/codex-home}:${KLANI_CODEX_HOME_CONTAINER_DIR:-/codex-home}
+      - ${KLANI_DIRECT_WORK_HOST_DIR:-../../data/coder/bench/direct-work}:/work
+      - ${KLANI_CODEX_USAGE_HOST_DIR:-../../data/coder/agent-usage/codex-direct}:/usage
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=128m,mode=1777
+      - /home/agent/.cache:rw,nosuid,nodev,size=128m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    stdin_open: true
+    restart: "no"

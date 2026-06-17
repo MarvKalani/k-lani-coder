@@ -1,0 +1,14 @@
+run: B4-k-lani-coder-glm  agent=k-lani-coder-strong  model=zai-proxy/glm-5.1  wall=77s
+  # stream model                              prompt   compl    total   cost_u
+  1 true   glm-5.1                               598     273      871     1690
+  2 true   glm-5.1                              3336     143     3479     3908
+  3 true   glm-5.1                              3622      15     3637     3682
+  4 true   glm-5.1                              3670      38     3708     3822
+  5 true   glm-5.1                              3866      19     3885     3942
+  6 true   glm-5.1                              4262     116     4378     4726
+  7 true   glm-5.1                              4605     122     4727     5093
+  8 true   glm-5.1                              4870     290     5160     6030
+  9 true   glm-5.1                              5275     163     5438     5927
+ 10 true   glm-5.1                              5646     121     5767     6130
+ 11 true   glm-5.1                              5909     208     6117     6741
+SUM        11 requests                         45659    1508    47167    51691

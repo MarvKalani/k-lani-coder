@@ -1,0 +1,65 @@
+# Sandboxed MCP-only agent — the harness model enforced by construction.
+#
+#   # 1) on the HOST: the hub owns the repo and binds loopback by default:
+#   k-lani-coder serve --hub 127.0.0.1:8790 --data-dir data/coder --workspace .
+#
+#   # 2) run the sandboxed agent:
+#   docker compose -f publish/k-lani-coder/docker-compose.agent.yml up --build
+#
+# The agent container has NO repo mount: its ONLY code access is the hub's
+# MCP server (a serve --connect bridge). Reads are symbol-slices; writes go
+# through guarded write/replace -> WORM diff evidence. It cannot open a host
+# file because there is no host file in the container. Proven by the smoke
+# test in AGENT_SANDBOX.md.
+#
+# WHY network_mode: host by default? The safe default hub binds loopback only,
+# so it is reachable as 127.0.0.1 only from the host network namespace. Host
+# networking does NOT give filesystem access (no mount = no repo). To close
+# the network-isolation gap, run the hub with an env-sourced token and a
+# non-loopback bind, then remove network_mode: host and point KLANI_HUB at the
+# reachable host/private-network address:
+#
+#   K_LANI_CODER_HUB_TOKEN=<secret> \
+#     k-lani-coder serve --hub 0.0.0.0:8790 \
+#       --hub-token-env K_LANI_CODER_HUB_TOKEN \
+#       --data-dir data/coder --workspace .
+#
+#   KLANI_HUB=<reachable-host-or-hub>:8790 \
+#   K_LANI_CODER_HUB_TOKEN=<same-secret> \
+#     docker compose -f publish/k-lani-coder/docker-compose.agent.yml up --build
+#
+# EGRESS (the metering knob) — also see AGENT_SANDBOX.md:
+#   - API-key / local agents: point the agent's LLM base URL at the proxy
+#     with a ticket prefix (http://127.0.0.1:8080/t/<ticket>/<role>/v1) so
+#     tokens + cost are measured.
+#   - subscription agents (Claude Code / Codex): use the dedicated
+#     docker-compose.*-agent.yml wrappers. They keep vendor subscription auth,
+#     capture native token counters, and still expose no repo.
+
+name: k-lani-coder-agent-sandbox
+
+services:
+  agent:
+    build:
+      context: .
+      dockerfile: agent.Dockerfile
+    image: k-lani-coder-agent:2026.24.10
+    # Reach the loopback hub on the host. Filesystem stays isolated below.
+    network_mode: host
+    # NO volumes — the agent must see nothing of the repo. This is the point.
+    environment:
+      # identity MUST be the exact model + effort, never a role nickname
+      KLANI_HUB: ${KLANI_HUB:-127.0.0.1:8790}
+      K_LANI_CODER_HUB_TOKEN: ${K_LANI_CODER_HUB_TOKEN:-}
+      KLANI_AGENT_ID: ${KLANI_AGENT_ID:-opus-4-8-high}
+      KLANI_LEVEL: ${KLANI_LEVEL:-2}
+    command:
+      - serve
+      - --connect
+      - ${KLANI_HUB:-127.0.0.1:8790}
+      - --agent-id
+      - ${KLANI_AGENT_ID:-opus-4-8-high}
+      - --level
+      - ${KLANI_LEVEL:-2}
+    stdin_open: true
+    restart: "no"

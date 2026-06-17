@@ -1,0 +1,89 @@
+# Sandboxed Claude Code worker.
+#
+# This is the Claude counterpart to docker-compose.codex-agent.yml: no
+# repository mount, k-lani-coder as the only MCP bridge, Claude native tools
+# disabled, and Claude stream-json usage captured in a host-readable project
+# data directory for the live board.
+#
+# Start the host-side hub first:
+#   k-lani-coder serve --hub 127.0.0.1:8790 --data-dir data/coder --workspace .
+#
+# First-time subscription auth:
+#   docker compose -f publish/k-lani-coder/docker-compose.claude-agent.yml \
+#     run --rm claude-agent login
+#
+# Check auth:
+#   docker compose -f publish/k-lani-coder/docker-compose.claude-agent.yml \
+#     run --rm claude-agent auth-status
+#
+# One ticket run:
+#   KLANI_TICKET=7aed3684 KLANI_PROMPT='Work the assigned ticket.' \
+#     docker compose -f publish/k-lani-coder/docker-compose.claude-agent.yml \
+#     run --rm claude-agent
+#
+# Authenticated private-network hub bridge:
+#   run the host hub with:
+#     K_LANI_CODER_HUB_TOKEN=<secret> \
+#       k-lani-coder serve --hub 0.0.0.0:8790 --hub-token-env K_LANI_CODER_HUB_TOKEN ...
+#   then run this container without host networking only after setting:
+#     KLANI_HUB=<reachable-host-or-hub>:8790
+#     KLANI_HUB_TOKEN_ENV=K_LANI_CODER_HUB_TOKEN
+#     K_LANI_CODER_HUB_TOKEN=<same-secret>
+
+name: k-lani-coder-claude-agent-sandbox
+
+services:
+  claude-agent:
+    build:
+      context: .
+      dockerfile: claude-agent.Dockerfile
+      args:
+        CLAUDE_CODE_NPM_VERSION: ${CLAUDE_CODE_NPM_VERSION:-2.1.177}
+    image: k-lani-coder-claude-agent:${KLANI_IMAGE_TAG:-2026.24.10}
+    # Default hub security binds loopback. Host networking reaches that hub;
+    # filesystem isolation is still enforced by the absent repo mount. For
+    # private-network mode, use the tokenized hub recipe above and remove this.
+    network_mode: host
+    environment:
+      HOME: /home/agent
+      KLANI_USAGE_DIR: /usage
+      KLANI_HUB: ${KLANI_HUB:-127.0.0.1:8790}
+      KLANI_HUB_TOKEN_ENV: ${KLANI_HUB_TOKEN_ENV:-}
+      K_LANI_CODER_HUB_TOKEN: ${K_LANI_CODER_HUB_TOKEN:-}
+      KLANI_AGENT_ID: ${KLANI_AGENT_ID:-opus-4-8-medium-claude-code-subscription}
+      KLANI_MODEL: ${KLANI_MODEL:-claude-opus-4-8}
+      KLANI_REASONING_EFFORT: ${KLANI_REASONING_EFFORT:-medium}
+      KLANI_TICKET: ${KLANI_TICKET:-}
+      KLANI_ROLE: ${KLANI_ROLE:-worker}
+      KLANI_PHASE: ${KLANI_PHASE:-worker}
+      KLANI_LEVEL: ${KLANI_LEVEL:-2}
+      KLANI_MCP_MODE: ${KLANI_MCP_MODE:-}
+      KLANI_RUNTIME_PROFILE: ${KLANI_RUNTIME_PROFILE:-}
+      KLANI_CLAUDE_RUNTIME_PROFILE: ${KLANI_CLAUDE_RUNTIME_PROFILE:-}
+      KLANI_CLAUDE_ENABLED_TOOLS: ${KLANI_CLAUDE_ENABLED_TOOLS:-}
+      KLANI_BILLING: ${KLANI_BILLING:-subscription}
+      KLANI_CONTEXT_PACK_PATH: ${KLANI_CONTEXT_PACK_PATH:-}
+      KLANI_CONTEXT_PACK_SHA256: ${KLANI_CONTEXT_PACK_SHA256:-}
+      KLANI_CONTEXT_PACK_BYTES: ${KLANI_CONTEXT_PACK_BYTES:-}
+      KLANI_CONTEXT_PACK_ESTIMATED_TOKENS: ${KLANI_CONTEXT_PACK_ESTIMATED_TOKENS:-}
+      KLANI_CLAUDE_ONE_SHOT_RESULT_PATH: ${KLANI_CLAUDE_ONE_SHOT_RESULT_PATH:-}
+      KLANI_CAPTURE_PROMPT_INPUT: ${KLANI_CAPTURE_PROMPT_INPUT:-0}
+      KLANI_PROMPT: ${KLANI_PROMPT:-}
+      KLANI_READ_STDIN: ${KLANI_READ_STDIN:-0}
+    volumes:
+      - claude_home:/home/agent
+      - ${KLANI_CLAUDE_USAGE_HOST_DIR:-../../data/coder/agent-usage/claude}:/usage
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m
+      - /work:rw,noexec,nosuid,nodev,size=64m
+      - /home/agent/.cache:rw,noexec,nosuid,nodev,size=64m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    stdin_open: true
+    restart: "no"
+
+volumes:
+  claude_home:

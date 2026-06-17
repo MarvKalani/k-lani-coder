@@ -1,0 +1,155 @@
+# Sandboxed Codex CLI worker/planner.
+#
+# This is the Codex counterpart to docker-compose.agent.yml: no repository
+# mount, k-lani-coder as the required MCP bridge, and Codex JSONL usage
+# captured in a host-readable project data directory for the live board.
+#
+# Start the host-side hub first:
+#   k-lani-coder serve --hub 127.0.0.1:8790 --data-dir data/coder --workspace .
+#
+# First-time auth:
+#   docker compose -f publish/k-lani-coder/docker-compose.codex-agent.yml \
+#     run --rm codex-agent login
+#
+# One worker ticket run:
+#   KLANI_TICKET=7aed3684 KLANI_PROMPT='Work the assigned ticket.' \
+#     docker compose -f publish/k-lani-coder/docker-compose.codex-agent.yml \
+#     run --rm codex-agent
+#
+# One planner ticket dry run with gpt-5.5 medium reasoning:
+#   KLANI_TICKET=66031272 KLANI_PROMPT='Plan this ticket without editing files.' \
+#     docker compose -f publish/k-lani-coder/docker-compose.codex-agent.yml \
+#     --profile planner run --rm codex-planner
+#
+# Optional exact API-key attribution through k-lani-ai-proxy:
+#   KLANI_BILLING=api OPENAI_API_KEY=dummy \
+#   KLANI_CODEX_PROXY_BASE_URL=http://127.0.0.1:8080 \
+#   KLANI_TICKET=7aed3684 KLANI_ROLE=worker \
+#     docker compose -f publish/k-lani-coder/docker-compose.codex-agent.yml \
+#     run --rm codex-agent
+#
+# Subscription/OAuth runs may still emit Codex JSONL usage, but they are
+# flat-rate wrapper evidence, not exact provider-billed API cost.
+#
+# Authenticated private-network hub bridge:
+#   run the host hub with:
+#     K_LANI_CODER_HUB_TOKEN=<secret> \
+#       k-lani-coder serve --hub 0.0.0.0:8790 --hub-token-env K_LANI_CODER_HUB_TOKEN ...
+#   then run this container without host networking only after setting:
+#     KLANI_HUB=<reachable-host-or-hub>:8790
+#     KLANI_HUB_TOKEN_ENV=K_LANI_CODER_HUB_TOKEN
+#     K_LANI_CODER_HUB_TOKEN=<same-secret>
+
+name: k-lani-coder-codex-agent-sandbox
+
+services:
+  codex-agent:
+    build:
+      context: .
+      dockerfile: codex-agent.Dockerfile
+      args:
+        CODEX_NPM_VERSION: ${CODEX_NPM_VERSION:-0.128.0}
+    image: k-lani-coder-codex-agent:${KLANI_IMAGE_TAG:-2026.24.10}
+    # Default hub security binds loopback. Host networking reaches that hub;
+    # filesystem isolation is still enforced by the absent repo mount. For
+    # private-network mode, use the tokenized hub recipe above and remove this.
+    network_mode: host
+    environment:
+      CODEX_HOME: ${KLANI_CODEX_HOME_CONTAINER_DIR:-/home/agent/.codex}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      KLANI_USAGE_DIR: /usage
+      KLANI_HUB: ${KLANI_HUB:-127.0.0.1:8790}
+      KLANI_HUB_TOKEN_ENV: ${KLANI_HUB_TOKEN_ENV:-}
+      K_LANI_CODER_HUB_TOKEN: ${K_LANI_CODER_HUB_TOKEN:-}
+      KLANI_AGENT_ID: ${KLANI_AGENT_ID:-gpt-5.5-xhigh-codex-subscription}
+      KLANI_MODEL: ${KLANI_MODEL:-gpt-5.5}
+      KLANI_REASONING_EFFORT: ${KLANI_REASONING_EFFORT:-xhigh}
+      KLANI_TICKET: ${KLANI_TICKET:-}
+      KLANI_ROLE: ${KLANI_ROLE:-worker}
+      KLANI_PHASE: ${KLANI_PHASE:-worker}
+      KLANI_LEVEL: ${KLANI_LEVEL:-2}
+      KLANI_MCP_MODE: ${KLANI_MCP_MODE:-}
+      KLANI_CODEX_RUNTIME_PROFILE: ${KLANI_CODEX_RUNTIME_PROFILE:-}
+      KLANI_CODEX_ENABLED_TOOLS: ${KLANI_CODEX_ENABLED_TOOLS:-}
+      KLANI_CODEX_ONE_SHOT_OUTPUT_MODE: ${KLANI_CODEX_ONE_SHOT_OUTPUT_MODE:-}
+      KLANI_CODEX_SANDBOX: ${KLANI_CODEX_SANDBOX:-read-only}
+      KLANI_BILLING: ${KLANI_BILLING:-subscription}
+      KLANI_CODEX_HOME_ISOLATED: ${KLANI_CODEX_HOME_ISOLATED:-0}
+      KLANI_CODEX_HOME_MODE: ${KLANI_CODEX_HOME_MODE:-unspecified}
+      KLANI_CODEX_HOME_LABEL: ${KLANI_CODEX_HOME_LABEL:-}
+      KLANI_CODEX_HOME_MANIFEST_PATH: ${KLANI_CODEX_HOME_MANIFEST_PATH:-}
+      KLANI_CODEX_PROXY_URL: ${KLANI_CODEX_PROXY_URL:-}
+      KLANI_CODEX_PROXY_BASE_URL: ${KLANI_CODEX_PROXY_BASE_URL:-}
+      KLANI_CONTEXT_PACK_PATH: ${KLANI_CONTEXT_PACK_PATH:-}
+      KLANI_CONTEXT_PACK_SHA256: ${KLANI_CONTEXT_PACK_SHA256:-}
+      KLANI_CONTEXT_PACK_BYTES: ${KLANI_CONTEXT_PACK_BYTES:-}
+      KLANI_CONTEXT_PACK_ESTIMATED_TOKENS: ${KLANI_CONTEXT_PACK_ESTIMATED_TOKENS:-}
+      KLANI_CODEX_ONE_SHOT_RESULT_PATH: ${KLANI_CODEX_ONE_SHOT_RESULT_PATH:-}
+      KLANI_CAPTURE_PROMPT_INPUT: ${KLANI_CAPTURE_PROMPT_INPUT:-0}
+      KLANI_AGENT_HEARTBEAT_MS: ${KLANI_AGENT_HEARTBEAT_MS:-}
+      KLANI_AGENT_NO_PROGRESS_TIMEOUT_MS: ${KLANI_AGENT_NO_PROGRESS_TIMEOUT_MS:-}
+      KLANI_AGENT_SILENT_TURN_TIMEOUT_MS: ${KLANI_AGENT_SILENT_TURN_TIMEOUT_MS:-}
+      KLANI_CODEX_OTEL_LIVENESS: ${KLANI_CODEX_OTEL_LIVENESS:-}
+      KLANI_PROMPT: ${KLANI_PROMPT:-}
+      KLANI_READ_STDIN: ${KLANI_READ_STDIN:-}
+    volumes:
+      - ${KLANI_CODEX_HOME_HOST_DIR:-codex_home}:${KLANI_CODEX_HOME_CONTAINER_DIR:-/home/agent/.codex}
+      - ${KLANI_CODEX_USAGE_HOST_DIR:-../../data/coder/agent-usage/codex}:/usage
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m,uid=10003,gid=10003,mode=1777
+      - /work:rw,noexec,nosuid,nodev,size=64m,uid=10003,gid=10003,mode=0755
+      - /home/agent/.cache:rw,noexec,nosuid,nodev,size=64m,uid=10003,gid=10003,mode=0755
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    stdin_open: true
+    restart: "no"
+
+  codex-planner:
+    extends:
+      service: codex-agent
+    profiles:
+      - planner
+    environment:
+      CODEX_HOME: ${KLANI_CODEX_HOME_CONTAINER_DIR:-/home/agent/.codex}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      KLANI_USAGE_DIR: /usage
+      KLANI_HUB: ${KLANI_HUB:-127.0.0.1:8790}
+      KLANI_HUB_TOKEN_ENV: ${KLANI_HUB_TOKEN_ENV:-}
+      K_LANI_CODER_HUB_TOKEN: ${K_LANI_CODER_HUB_TOKEN:-}
+      KLANI_AGENT_ID: ${KLANI_AGENT_ID:-gpt-5.5-medium-codex-subscription}
+      KLANI_MODEL: ${KLANI_MODEL:-gpt-5.5}
+      KLANI_REASONING_EFFORT: ${KLANI_REASONING_EFFORT:-medium}
+      KLANI_TICKET: ${KLANI_TICKET:-}
+      KLANI_ROLE: ${KLANI_ROLE:-planner}
+      KLANI_PHASE: ${KLANI_PHASE:-planner}
+      KLANI_LEVEL: ${KLANI_LEVEL:-3}
+      KLANI_MCP_MODE: ${KLANI_MCP_MODE:-}
+      KLANI_CODEX_RUNTIME_PROFILE: ${KLANI_CODEX_RUNTIME_PROFILE:-}
+      KLANI_CODEX_ENABLED_TOOLS: ${KLANI_CODEX_ENABLED_TOOLS:-}
+      KLANI_CODEX_ONE_SHOT_OUTPUT_MODE: ${KLANI_CODEX_ONE_SHOT_OUTPUT_MODE:-}
+      KLANI_CODEX_SANDBOX: ${KLANI_CODEX_SANDBOX:-read-only}
+      KLANI_BILLING: ${KLANI_BILLING:-subscription}
+      KLANI_CODEX_HOME_ISOLATED: ${KLANI_CODEX_HOME_ISOLATED:-0}
+      KLANI_CODEX_HOME_MODE: ${KLANI_CODEX_HOME_MODE:-unspecified}
+      KLANI_CODEX_HOME_LABEL: ${KLANI_CODEX_HOME_LABEL:-}
+      KLANI_CODEX_HOME_MANIFEST_PATH: ${KLANI_CODEX_HOME_MANIFEST_PATH:-}
+      KLANI_CODEX_PROXY_URL: ${KLANI_CODEX_PROXY_URL:-}
+      KLANI_CODEX_PROXY_BASE_URL: ${KLANI_CODEX_PROXY_BASE_URL:-}
+      KLANI_CONTEXT_PACK_PATH: ${KLANI_CONTEXT_PACK_PATH:-}
+      KLANI_CONTEXT_PACK_SHA256: ${KLANI_CONTEXT_PACK_SHA256:-}
+      KLANI_CONTEXT_PACK_BYTES: ${KLANI_CONTEXT_PACK_BYTES:-}
+      KLANI_CONTEXT_PACK_ESTIMATED_TOKENS: ${KLANI_CONTEXT_PACK_ESTIMATED_TOKENS:-}
+      KLANI_CODEX_ONE_SHOT_RESULT_PATH: ${KLANI_CODEX_ONE_SHOT_RESULT_PATH:-}
+      KLANI_CAPTURE_PROMPT_INPUT: ${KLANI_CAPTURE_PROMPT_INPUT:-0}
+      KLANI_AGENT_HEARTBEAT_MS: ${KLANI_AGENT_HEARTBEAT_MS:-}
+      KLANI_AGENT_NO_PROGRESS_TIMEOUT_MS: ${KLANI_AGENT_NO_PROGRESS_TIMEOUT_MS:-}
+      KLANI_AGENT_SILENT_TURN_TIMEOUT_MS: ${KLANI_AGENT_SILENT_TURN_TIMEOUT_MS:-}
+      KLANI_CODEX_OTEL_LIVENESS: ${KLANI_CODEX_OTEL_LIVENESS:-}
+      KLANI_PROMPT: ${KLANI_PROMPT:-}
+      KLANI_READ_STDIN: ${KLANI_READ_STDIN:-}
+
+volumes:
+  codex_home:

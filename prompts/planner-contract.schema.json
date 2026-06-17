@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "k-lani-coder planner contract",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "task": {
+      "type": "string",
+      "description": "Task description following the selected exact planner-role profile."
+    },
+    "allowed_symbols": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "gate": {
+      "type": "string"
+    },
+    "done": {
+      "type": "string"
+    },
+    "level": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 3
+    },
+    "context_tokens": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Optional minimum context capacity required by this ticket; omit rather than guess."
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "maxItems": 3
+    },
+    "depends_on": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "docs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "task",
+    "allowed_symbols",
+    "gate",
+    "done",
+    "level",
+    "tags",
+    "depends_on",
+    "docs"
+  ]
+}
